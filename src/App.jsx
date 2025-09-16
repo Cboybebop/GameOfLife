@@ -22,6 +22,10 @@ const PATTERNS = {
   ]
 };
 
+const MIN_CELL_SIZE = 4;
+const MAX_CELL_SIZE = 18;
+const CELL_GAP = 1;
+
 const BlueBadge = ({ children }) => (
   <span className="inline-flex items-center gap-2 rounded-xl bg-blue-100 text-blue-800 px-3 py-1 text-sm font-semibold shadow-sm">
     {children}
@@ -35,6 +39,8 @@ export default function App() {
   const [running, setRunning] = useState(true);
   const [generation, setGeneration] = useState(0);
   const [speed, setSpeed] = useState(120);
+  const boardWrapperRef = useRef(null);
+  const [cellSize, setCellSize] = useState(MAX_CELL_SIZE);
   const runningRef = useRef(running);
   runningRef.current = running;
 
@@ -140,6 +146,38 @@ export default function App() {
 
   const liveCount = useMemo(() => grid.flat().reduce((a, b) => a + b, 0), [grid]);
 
+  useEffect(() => {
+    const updateSize = () => {
+      const node = boardWrapperRef.current;
+      if (!node || !cols) return;
+      const available = node.clientWidth - Math.max(0, cols - 1) * CELL_GAP;
+      const raw = Math.floor(available / cols);
+      const clamped = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, raw));
+      setCellSize(prev => (prev === clamped ? prev : clamped));
+    };
+
+    updateSize();
+
+    const node = boardWrapperRef.current;
+    if (!node) return;
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(updateSize);
+      observer.observe(node);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, [cols]);
+
+  const gridStyle = useMemo(() => ({
+    display: "grid",
+    gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+    gap: CELL_GAP,
+    justifyContent: "center"
+  }), [cellSize, cols]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-slate-950 text-slate-100 p-4 md:p-8">
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -155,8 +193,8 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto mt-6 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         <section className="bg-blue-950/40 border border-blue-800/40 rounded-2xl p-3 md:p-4 shadow-xl backdrop-blur">
-          <div className="mx-auto" style={{ width: "100%", overflow: "auto" }}>
-            <div className="mx-auto select-none" style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 18px)`, gap: 1.5, justifyContent: "start" }}>
+          <div ref={boardWrapperRef} className="mx-auto w-full overflow-x-auto">
+            <div className="mx-auto select-none" style={gridStyle}>
               {grid.map((row, r) =>
                 row.map((cell, c) => (
                   <button
@@ -164,11 +202,12 @@ export default function App() {
                     aria-label={`Cell ${r + 1}, ${c + 1}`}
                     onClick={() => toggleCell(r, c)}
                     className={
-                      "h-[18px] w-[18px] rounded-sm border transition-colors duration-150 " +
+                      "rounded-sm border transition-colors duration-150 " +
                       (cell
                         ? "bg-blue-400/90 border-blue-300 shadow-inner hover:bg-blue-300"
                         : "bg-blue-950/20 border-blue-800/50 hover:bg-blue-900/40")
                     }
+                    style={{ width: cellSize, height: cellSize }}
                   />
                 ))
               )}
@@ -179,12 +218,38 @@ export default function App() {
         <aside className="bg-slate-900/40 border border-blue-800/40 rounded-2xl p-4 shadow-xl backdrop-blur">
           <h2 className="text-xl font-semibold mb-3 text-blue-100">Controls</h2>
           <div className="grid gap-3">
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setRunning(r => !r)} className="col-span-2 rounded-xl py-2 px-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold shadow">{running ? "Pause" : "Start"}</button>
-              <button onClick={stepOnce} disabled={running} className="rounded-xl py-2 px-3 bg-blue-700/70 hover:bg-blue-600/80 disabled:opacity-50 disabled:hover:bg-blue-700/70 text-white font-medium shadow">Step once</button>
-              <button onClick={randomise} className="rounded-xl py-2 px-3 bg-blue-700/70 hover:bg-blue-600/80 text-white font-medium shadow">Randomise</button>
-              <button onClick={clear} className="rounded-xl py-2 px-3 bg-sky-700/70 hover:bg-sky-600/80 text-white font-medium shadow">Clear board</button>
-              <button onClick={() => { setRunning(false); setGeneration(0); }} className="rounded-xl py-2 px-3 bg-indigo-700/70 hover:bg-indigo-600/80 text-white font-medium shadow">Stop and reset counter</button>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                onClick={() => setRunning(r => !r)}
+                className="w-full rounded-xl py-2 px-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold shadow sm:col-span-2"
+              >
+                {running ? "Pause" : "Start"}
+              </button>
+              <button
+                onClick={stepOnce}
+                disabled={running}
+                className="w-full rounded-xl py-2 px-3 bg-blue-700/70 hover:bg-blue-600/80 disabled:opacity-50 disabled:hover:bg-blue-700/70 text-white font-medium shadow"
+              >
+                Step once
+              </button>
+              <button
+                onClick={randomise}
+                className="w-full rounded-xl py-2 px-3 bg-blue-700/70 hover:bg-blue-600/80 text-white font-medium shadow"
+              >
+                Randomise
+              </button>
+              <button
+                onClick={clear}
+                className="w-full rounded-xl py-2 px-3 bg-sky-700/70 hover:bg-sky-600/80 text-white font-medium shadow"
+              >
+                Clear board
+              </button>
+              <button
+                onClick={() => { setRunning(false); setGeneration(0); }}
+                className="w-full rounded-xl py-2 px-3 bg-indigo-700/70 hover:bg-indigo-600/80 text-white font-medium shadow sm:col-span-2"
+              >
+                Stop and reset counter
+              </button>
             </div>
 
             <div className="mt-1">
@@ -193,7 +258,7 @@ export default function App() {
               <div className="text-xs text-blue-200 mt-1">{speed} ms per generation</div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
                 <label className="block text-sm mb-1">Rows</label>
                 <input type="number" min={10} max={80} value={rows} onChange={e => setRows(Number(e.target.value) || 0)} className="w-full rounded-lg bg-slate-800 border border-blue-800 px-2 py-1" />
@@ -206,12 +271,12 @@ export default function App() {
 
             <div>
               <label className="block text-sm mb-1">Load a pattern</label>
-              <div className="flex gap-2">
-                <select id="pattern" className="flex-1 rounded-lg bg-slate-800 border border-blue-800 px-2 py-2" onChange={(e) => loadPattern(e.target.value)} defaultValue="">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <select id="pattern" className="w-full rounded-lg bg-slate-800 border border-blue-800 px-2 py-2 sm:flex-1" onChange={(e) => loadPattern(e.target.value)} defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Object.keys(PATTERNS).map(p => (<option key={p} value={p}>{p}</option>))}
                 </select>
-                <button onClick={() => setRunning(true)} className="rounded-xl py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow">Start</button>
+                <button onClick={() => setRunning(true)} className="w-full rounded-xl py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow sm:w-auto">Start</button>
               </div>
             </div>
 
