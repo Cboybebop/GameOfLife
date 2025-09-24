@@ -1,5 +1,12 @@
 # Conway’s Game of Life — Blue (Vite + React)
 
+The Game of Life is a cellular automaton devised by the British mathematician John Horton Conway. It is a zero-player game, meaning that its evolution is determined by its initial state, requiring no further input.
+
+![Screenshot](./doc/screenshot.gif)
+
+### [Live Demo Link (https://golgame.netlify.app)](https://golgame.netlify.app)
+
+
 ## Quick start
 
 ```bash
